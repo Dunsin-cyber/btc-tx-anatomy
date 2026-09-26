@@ -27,8 +27,9 @@ This project is a small set of TypeScript scripts that talk to a public Bitcoin 
 |---|---|
 | `npm run wallet` | Creates your test wallet (a private key and an address) and saves it in `.env` |
 | `npm run balance` | Lists the coins (UTXOs) your address owns |
-| `npm run decode -- <txid>` | Downloads any transaction and explains each part of it |
+| `npm run decode -- <txid>` | Downloads any transaction and explains each part of it, byte by byte |
 | `npm run send -- <address> <sats> "<message>"` | Builds, signs and broadcasts a transaction, with an optional OP_RETURN message |
+| `npm run send -- me 1000 "gm" --dry-run` | Same, but `me` pays yourself and `--dry-run` shows the signed transaction byte by byte **without** sending it |
 
 **Your private key never leaves your laptop.** The scripts sign locally and only send the finished, signed transaction to the network.
 
@@ -51,12 +52,12 @@ Please do the setup **before the meetup** if you can. Installing is the slowest 
 
 1. You need a free GitHub account.
 2. Open this repository on GitHub, click the green **Code** button, open the **Codespaces** tab, then click **Create codespace on main**.
-3. Wait for it to load. It runs `npm install` for you.
+3. Wait for it to load. It runs `npm install` and creates your `.env` for you.
 4. In the terminal at the bottom of the screen, run `npm run wallet`.
 
 ### Option B: on your own laptop
 
-You need **Node.js 20 or newer** (run `node -v` to check) and **git**.
+You need **Node.js 22 or newer** (run `node -v` to check) and **git**. If you use nvm, `nvm use` picks the right version from `.nvmrc`.
 
 ```bash
 git clone <this-repo-url>
@@ -71,13 +72,15 @@ npm run wallet
 1. `npm run wallet` prints your address. It starts with `tb1q`.
 2. Get some free test coins in one of two ways:
    - paste your address in the meetup chat and the host will send you some, **or**
-   - use the Mutinynet faucet at <https://faucet.mutinynet.com>.
+   - use the Mutinynet faucet at <https://faucet.mutinynet.com>. It asks you to **sign in with GitHub** (to stop bots draining it), then sends up to 1,000,000 sats per request.
 3. Wait about 30 seconds, then run `npm run balance`.
 4. If you see a coin listed, you're ready.
 
 ## Credentials: what you need and why
 
-**No API keys, no accounts, no signups.** The blockchain API we use is public and free. The only exception is Option A, which needs a GitHub account for Codespaces.
+**No API keys and no signups for the code.** The blockchain API we use is public and free.
+
+You only need a **GitHub account** if you want to use Codespaces (Option A) or get coins from the faucet yourself. No GitHub account? No problem: run the code locally and get your coins from the host.
 
 The only secret in this project is **your test wallet's private key**, and the scripts create it for you.
 
@@ -91,8 +94,13 @@ Your `.env` file holds:
 
 ```bash
 # .env.example
+# Which test network to use: mutinynet (default, ~30s blocks) or signet (backup, ~10 min blocks)
 NETWORK=mutinynet
+
+# Your test wallet's private key. Leave it empty: `npm run wallet` fills it in
 WIF=
+
+# Fee you pay when sending, in sats per vbyte
 FEE_RATE=2
 ```
 
@@ -130,7 +138,7 @@ Mutinynet is a **signet**. It follows Bitcoin's rules, but instead of open minin
 NETWORK=signet
 ```
 
-This points the scripts at the public Signet API at `blockstream.info/signet/api`. It works the same way, but blocks are slower.
+This points the scripts at the public Signet API at `blockstream.info/signet/api`. It works the same way, but blocks are slower. Your wallet and address stay the same, but coins are separate: Mutinynet coins don't exist on Signet.
 
 ## A quick word on OP_RETURN
 
@@ -150,16 +158,23 @@ During the session we'll send an 80 byte message, which basically every node acc
 ```
 btc-tx-anatomy/
 ├── src/
-│   ├── config.ts     network settings (Mutinynet or Signet) and API URLs
-│   ├── esplora.ts    tiny client for the public blockchain API
-│   ├── wallet.ts     create or load your key, print your address
-│   ├── balance.ts    list your coins (UTXOs)
-│   ├── decode.ts     take a real transaction apart and explain it
-│   ├── send.ts       build, sign and broadcast, with an OP_RETURN message
-│   └── airdrop.ts    host only: pay many attendees in one transaction
-├── .env.example      copy to .env; holds your network, key and fee rate
+│   ├── wallet.ts        npm run wallet   create your key, show how the address is made
+│   ├── balance.ts       npm run balance  list your coins (UTXOs)
+│   ├── decode.ts        npm run decode   take any transaction apart byte by byte
+│   ├── send.ts          npm run send     pay someone, with an optional OP_RETURN message
+│   ├── airdrop.ts       npm run airdrop  host only: pay many attendees in one transaction
+│   └── lib/             the building blocks those commands use
+│       ├── config.ts    network settings (Mutinynet or Signet) and links
+│       ├── esplora.ts   tiny client for the public blockchain API
+│       ├── key.ts       turns the WIF in .env into a key pair and a tb1q address
+│       ├── tx.ts        ★ picks coins, adds outputs, prices the fee, signs
+│       ├── anatomy.ts   ★ reads raw transaction bytes and labels every field
+│       └── cli.ts       friendly errors, summaries, dry run or broadcast
+├── .env.example         copy to .env; holds your network, key and fee rate
 └── package.json
 ```
+
+The two ★ files are where the live coding happens: `anatomy.ts` for Part 1 and `tx.ts` for Part 3.
 
 ### Libraries we use, and why
 
@@ -196,11 +211,23 @@ btc-tx-anatomy/
 |---|---|---|
 | `No UTXOs found` | Your address has no coins yet | Get coins from the host or the faucet, wait ~30 seconds, try again |
 | `min relay fee not met` | Your fee is too low | Raise `FEE_RATE` in `.env` |
-| `bad-txns-inputs-missingorspent` | You tried to spend a coin that's already spent | Run `npm run balance` again and use fresh coins |
+| `bad-txns-inputs-missingorspent` | You tried to spend a coin that doesn't exist or is already spent | Run `npm run balance` again and use fresh coins |
 | `dust` | One of your outputs is too small to be worth spending | Send at least 1,000 sats |
 | `scriptpubkey` or `datacarrier` | The node refused your OP_RETURN because it's too big for its policy | That's part of the lesson! Shorten the message, or talk about why |
-| Timeouts or network errors | The Mutinynet API may be down | Set `NETWORK=signet` in `.env` |
+| `Could not reach ...` | Your internet dropped, or the API is down | Check your connection, then set `NETWORK=signet` in `.env` |
+| `isn't a valid Mutinynet address` | You used a mainnet (`bc1...`) address or made a typo | Use a test address starting with `tb1` |
 | `WIF` missing or invalid | `.env` wasn't created, or the key got cut off when copying | Run `cp .env.example .env` then `npm run wallet` |
+
+## Code along challenges
+
+Try these during the session. Each one proves you understood one idea.
+
+1. **Find yourself.** Run `npm run decode -- <txid>` on the transaction that funded you. Which output is yours? How can you tell?
+2. **Read your own message.** Send a message to yourself with `npm run send -- me 1000 "gm bitdevs ibadan"`, then decode it. Find your message's bytes in the OP_RETURN output: `676d` is "gm".
+3. **Change one letter.** Run the same command with `--dry-run` twice, once with "gm" and once with "gn". Compare the two txids. Why does one letter change the whole thing?
+4. **Push the limit.** Send an 80 byte message, then a 200 byte one. Did the node accept both? What does that tell you about the node's policy?
+5. **Feel the fee.** Dry run the same send with `FEE_RATE=1` and then `FEE_RATE=10` in `.env`. What changes in the output, and what stays the same?
+6. **Send it home.** Send some sats back to the host's address (shared on the day) with a message for everyone to see on the explorer.
 
 ## After the session
 
@@ -209,9 +236,9 @@ btc-tx-anatomy/
 
 ## For the host
 
-- **The day before:** fund the host wallet from the faucet, and also fund a Signet wallet in case Mutinynet is down.
-- **The morning of:** run `npm run balance` on both networks to confirm the APIs are up.
-- **On the call:** collect attendee addresses from the chat into `addresses.txt`, then run `npm run airdrop -- addresses.txt` to pay everyone in **one** transaction with many outputs. That transaction is a lesson in itself.
+- **The day before:** run `npm run wallet`, then fund the host wallet from the faucet (sign in with GitHub, up to 1,000,000 sats per request). Also fund the same address on Signet in case Mutinynet is down.
+- **The morning of:** run `npm run balance` and `NETWORK=signet npm run balance` to confirm both APIs are up.
+- **On the call:** paste attendee addresses from the chat into `addresses.txt` (one per line; duplicates and invalid ones are skipped). Run `npm run airdrop -- addresses.txt 10000 "welcome to bitdevs ibadan" --dry-run` to preview, then run it again without `--dry-run` to pay everyone in **one** transaction with many outputs. That transaction is a lesson in itself.
 - **Screen sharing:** keep `.env` closed.
 
 ## Learn more
