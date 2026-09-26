@@ -29,6 +29,7 @@ This project is a small set of TypeScript scripts that talk to a public Bitcoin 
 | `npm run balance` | Lists the coins (UTXOs) your address owns |
 | `npm run decode -- <txid>` | Downloads any transaction and explains each part of it, byte by byte |
 | `npm run send -- <address> <sats> "<message>"` | Builds, signs and broadcasts a transaction, with an optional OP_RETURN message |
+| `npm run send -- <address> all "<message>"` | Empties your wallet into one address (everything except the fee). Use it to send leftovers back at the end |
 | `npm run send -- me 1000 "gm" --dry-run` | Same, but `me` pays yourself and `--dry-run` shows the signed transaction byte by byte **without** sending it |
 
 **Your private key never leaves your laptop.** The scripts sign locally and only send the finished, signed transaction to the network.
@@ -153,6 +154,10 @@ The key idea we'll explore live is that the 80 byte limit is **policy**, not **c
 
 During the session we'll send an 80 byte message, which basically every node accepts. Then we'll try a bigger one and read what the node says back.
 
+**Tested on Mutinynet on 26 September 2026:** 200 byte and 500 byte messages were both **accepted** and confirmed, so Mutinynet does not enforce the old 80 byte limit. Its node reports Bitcoin Core 29.2, which would normally refuse them, so whoever runs it raised the limit deliberately. The lesson stands, and it's a sharper one: the limit is a setting each node operator chooses, not a rule of Bitcoin.
+
+**A display trick worth showing.** The raw script is `6a` (OP_RETURN) + a length byte + your text. Explorers that read the whole script as text print `j`, then a box for the length byte, then your message, because those two bytes were never letters. Make your message **exactly 32 bytes** and the length byte becomes `0x20`, a space, so even the raw view reads cleanly: `j gm BitDevs Ibadan 26 Sep 2026!!!`
+
 ## Project layout
 
 ```
@@ -225,14 +230,29 @@ Try these during the session. Each one proves you understood one idea.
 1. **Find yourself.** Run `npm run decode -- <txid>` on the transaction that funded you. Which output is yours? How can you tell?
 2. **Read your own message.** Send a message to yourself with `npm run send -- me 1000 "gm bitdevs ibadan"`, then decode it. Find your message's bytes in the OP_RETURN output: `676d` is "gm".
 3. **Change one letter.** Run the same command with `--dry-run` twice, once with "gm" and once with "gn". Compare the two txids. Why does one letter change the whole thing?
-4. **Push the limit.** Send an 80 byte message, then a 200 byte one. Did the node accept both? What does that tell you about the node's policy?
+4. **Push the limit.** Send an 80 byte message, then a 200 byte one, then a 500 byte one. On Mutinynet all three are accepted (we tested). Why does that not mean "Bitcoin allows 500 bytes"?
 5. **Feel the fee.** Dry run the same send with `FEE_RATE=1` and then `FEE_RATE=10` in `.env`. What changes in the output, and what stays the same?
-6. **Send it home.** Send some sats back to the host's address (shared on the day) with a message for everyone to see on the explorer.
+6. **Make the message show properly.** Send a message that is **exactly 32 bytes** and look at the raw script on the explorer. The box that usually appears before your text is gone. Why? (Hint: the byte that says how long your message is happens to be a space.)
+7. **Send it home.** Send some sats back to the host's address (shared on the day) with a message for everyone to see on the explorer:
+
+```bash
+npm run send -- <host address> 2000 "thanks for the session"
+```
+
+8. **Empty your wallet.** At the end, send everything that's left in one go. `all` works out the fee for you and leaves no change behind:
+
+```bash
+npm run send -- tb1qmt3ue2senlg6ddgmr76hwsk0rdvdk4rgeaen7l all "gm from ibadan"
+```
 
 ## After the session
 
 - Keep playing. Your test wallet still works after the meetup.
-- Don't need your coins anymore? Send them back to the faucet (its page lists a "send back your unused sats" address) so the next learner can use them.
+- Don't need your coins anymore? Send them back to the faucet so the next learner can use them. Its page lists a "send back your unused sats" address, currently `tb1qmt3ue2senlg6ddgmr76hwsk0rdvdk4rgeaen7l`:
+
+```bash
+npm run send -- tb1qmt3ue2senlg6ddgmr76hwsk0rdvdk4rgeaen7l all "thanks for the sats"
+```
 
 ## For the host
 
@@ -240,6 +260,11 @@ Try these during the session. Each one proves you understood one idea.
 - **The morning of:** run `npm run balance` and `NETWORK=signet npm run balance` to confirm both APIs are up.
 - **On the call:** paste attendee addresses from the chat into `addresses.txt` (one per line; duplicates and invalid ones are skipped). Run `npm run airdrop -- addresses.txt 10000 "welcome to bitdevs ibadan" --dry-run` to preview, then run it again without `--dry-run` to pay everyone in **one** transaction with many outputs. That transaction is a lesson in itself.
 - **Screen sharing:** keep `.env` closed.
+- **At the end:** ask everyone to return what they didn't spend, then empty the host wallet the same way:
+
+```bash
+npm run send -- tb1qmt3ue2senlg6ddgmr76hwsk0rdvdk4rgeaen7l all "thanks mutinynet"
+```
 
 ## Learn more
 

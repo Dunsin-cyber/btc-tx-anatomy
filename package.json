@@ -1,0 +1,28 @@
+{
+  "name": "btc-tx-anatomy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BitDevs Ibadan live coding: take a Bitcoin transaction apart, write OP_RETURN messages, build and broadcast your own transactions on Mutinynet.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "wallet": "tsx src/wallet.ts",
+    "balance": "tsx src/balance.ts",
+    "decode": "tsx src/decode.ts",
+    "send": "tsx src/send.ts",
+    "airdrop": "tsx src/airdrop.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bitcoinerlab/secp256k1": "^2.0.0",
+    "bitcoinjs-lib": "^7.0.2",
+    "ecpair": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

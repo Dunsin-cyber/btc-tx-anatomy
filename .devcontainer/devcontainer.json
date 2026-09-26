@@ -1,0 +1,5 @@
+{
+  "name": "btc-tx-anatomy",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "postCreateCommand": "npm install && cp -n .env.example .env"
+}
