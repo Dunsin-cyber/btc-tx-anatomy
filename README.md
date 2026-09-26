@@ -47,8 +47,6 @@ This project is a small set of TypeScript scripts that talk to a public Bitcoin 
 
 ## Quick start
 
-Please do the setup **before the meetup** if you can. Installing is the slowest part.
-
 ### Option A: in your browser, nothing to install (recommended)
 
 1. You need a free GitHub account.
@@ -154,9 +152,6 @@ The key idea we'll explore live is that the 80 byte limit is **policy**, not **c
 
 During the session we'll send an 80 byte message, which basically every node accepts. Then we'll try a bigger one and read what the node says back.
 
-**Tested on Mutinynet on 26 September 2026:** 200 byte and 500 byte messages were both **accepted** and confirmed, so Mutinynet does not enforce the old 80 byte limit. Its node reports Bitcoin Core 29.2, which would normally refuse them, so whoever runs it raised the limit deliberately. The lesson stands, and it's a sharper one: the limit is a setting each node operator chooses, not a rule of Bitcoin.
-
-**A display trick worth showing.** The raw script is `6a` (OP_RETURN) + a length byte + your text. Explorers that read the whole script as text print `j`, then a box for the length byte, then your message, because those two bytes were never letters. Make your message **exactly 32 bytes** and the length byte becomes `0x20`, a space, so even the raw view reads cleanly: `j gm BitDevs Ibadan 26 Sep 2026!!!`
 
 ## Project layout
 
@@ -254,7 +249,7 @@ npm run send -- tb1qmt3ue2senlg6ddgmr76hwsk0rdvdk4rgeaen7l all "gm from ibadan"
 npm run send -- tb1qmt3ue2senlg6ddgmr76hwsk0rdvdk4rgeaen7l all "thanks for the sats"
 ```
 
-## For the host
+## TODOs for me
 
 - **The day before:** run `npm run wallet`, then fund the host wallet from the faucet (sign in with GitHub, up to 1,000,000 sats per request). Also fund the same address on Signet in case Mutinynet is down.
 - **The morning of:** run `npm run balance` and `NETWORK=signet npm run balance` to confirm both APIs are up.
